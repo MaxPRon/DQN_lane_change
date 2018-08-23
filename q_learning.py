@@ -34,7 +34,7 @@ class qnetwork:
         self.advantage_fc = tf.layers.dense(inputs = self.hidden_layer,units=hidden_units,activation=tf.nn.relu,kernel_initializer=tf.contrib.layers.xavier_initializer())
         self.advantage = tf.layers.dense(inputs=self.advantage_fc,units=output_dim,activation=None,kernel_initializer=tf.contrib.layers.xavier_initializer())
 
-        self.output_q_predict = self.value + tf.subtract(self.advantage,tf.reduce_mean(self.advantage,axis=1,keep_dims=True))
+        self.output_q_predict = self.value + tf.subtract(self.advantage,tf.reduce_mean(self.advantage,axis=1,keepdims=True))
 
         #self.output_q_predict = tf.layers.dense(self.hidden_layer,output_dim)
         # Clip values just in case

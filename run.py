@@ -16,14 +16,14 @@ def vectorize_state(state):
 
 
 #### Environment parameters ####
-num_of_cars = 30
-num_of_lanes = 5
+num_of_cars = 10
+num_of_lanes = 2
 track_length = 1000
 speed_limit = 50
 mode = "constant"
 
 ## Ego Init ##
-ego_lane_init = 3
+ego_lane_init = 1
 ego_pos_init = 0
 ego_speed_init = 0.5*speed_limit
 
@@ -82,7 +82,7 @@ total_steps = 0
 
 done = False
 
-final_save_path = "./model_h64_uf1000_e5000_30/Final.ckpt"
+final_save_path = "./model_h64_L3_e10000uf_5000_210_constant/Final.ckpt"
 
 with tf.Session() as sess:
     done = False
@@ -94,6 +94,7 @@ with tf.Session() as sess:
     rewards = []
     while done == False:
         action = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:[state_v]})
+        #action = random.randint(0,22)
         state1,reward,done = env.step(action)
         rewards.append(reward)
         state1_v = vectorize_state(state1)

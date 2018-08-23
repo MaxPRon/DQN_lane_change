@@ -42,7 +42,7 @@ clip_value = 300
 learning_rate = 0.001
 buffer_size = 50000
 batch_size = 32
-update_freq = 5000
+update_freq = 8000
 
 ## RL parameters
 gamma = 0.99
@@ -55,7 +55,7 @@ pre_train_steps = 10000 #Fill up buffer
 
 tau = 1 # Factor of copying parameters
 
-path = "model_h" + str(hidden_units)+"_L" + str(layers) + "_e" + str(max_train_episodes) + "uf_"+ str(update_freq) + "_" + str(num_of_lanes) + str(num_of_cars)+ "_"+ mode+"/"
+path = "model_h" + str(hidden_units)+"_L" + str(layers) + "_e" + str(max_train_episodes) + "_uf_"+ str(update_freq) + "_" + str(num_of_lanes) + str(num_of_cars)+ "_"+ mode+"/"
 
 
 #### Start training process ####
@@ -116,8 +116,6 @@ with tf.Session() as sess:
 
             else:
                 action = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:[state_v]})
-                if action > 20:
-                    print("lane change")
 
             state1, reward, done = env.step(action)
             state1_v = vectorize_state(state1)
@@ -159,12 +157,12 @@ with tf.Session() as sess:
         exp_buffer.add(episode_buffer.buffer)
         reward_time.append(reward_episode)
 
-        if episode % 100 == 0:
+        if episode % 1000 == 0:
             save_path = saver.save(sess,path+"modelRL"+ str(episode)+ ".ckpt")
             print("Model saved in: %s",save_path)
 
         if episode % 25 == 0:
-            print("Total steps: ", total_steps, "Average reward over 50 Episodes: ",np.mean(reward_time[-25:]),"Episode:", episode)
+            print("Total steps: ", total_steps, "Average reward over 25 Episodes: ",np.mean(reward_time[-25:]),"Episode:", episode)
             reward_average.append(np.mean(reward_time[-25:]))
 
     final_save_path = saver.save(sess,path + "Final.ckpt")
@@ -249,6 +247,7 @@ ax1 = plt.subplot(3,1,1) # rows cols index
 ax1.set_title("Reward for action")
 ax1.set_xlabel("timestep")
 ax1.set_ylabel("reward")
+ax1.grid()
 ax1.plot(rewards)
 
 
@@ -257,17 +256,20 @@ ax2.plot(actions,"ro")
 ax2.set_title("Action taken")
 ax2.set_xlabel("action")
 ax2.set_ylabel("timeestep")
+ax2.grid()
 
 ax3 = plt.subplot(3,1,3) # rows cols index
 ax3.set_title("Reward over time")
 ax3.set_xlabel("timestep")
 ax3.set_ylabel("reward")
+ax3.grid()
 ax3.plot(reward_time)
 
 
 
 plt.tight_layout()
 plt.savefig(path+'reward_action_final.png')
+
 plt.show()
 
 
