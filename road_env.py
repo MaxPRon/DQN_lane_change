@@ -9,23 +9,27 @@ import random
 
 class highway:
 
-    def __init__(self,lanes,cars,length = 500,speed_limit=50,ego_lane=1,ego_pos=100,ego_speed=10):
+    def __init__(self,lanes,cars,length = 500,speed_limit=50,ego_lane=1,ego_pos=100,ego_speed=10,mode = "constant",seed = 0):
 
         # Road environment
+        random.seed(seed)
         self.n_lanes = lanes
         self.n_cars = cars
         self.speed_limit = speed_limit
         self.length = length
-        self.s0 = 20 # min_dist
+        self.s0 = 40 # min_dist
         self.T = 2 # safe time
         self.done = False
         self.timestep = 0
-
+        self.mode = mode
+        self.reward = 0
+        self.dist_t = self.length-ego_pos
+        self.dist_t1 = self.length - ego_pos
 
         # Vehicle Parameters
         self.vehicle_length = 3
-        self.a = 1 #max_acc
-        self.b = 1.5 # comfortable decceleration
+        self.a = 0.3*self.speed_limit #max_acc
+        self.b = 0.4*self.speed_limit # comfortable decceleration
         self.car_velo_con = speed_limit/2
 
         # Calculation parameter
@@ -50,7 +54,8 @@ class highway:
 
         # Other traffic members
         for i in range(1,self.n_cars+1):
-            self.car_pos[i] = (random.randint(1,self.n_lanes),np.random.choice(np.arange(0,1,0.1))*self.length, random.random()*self.speed_limit,i)
+            self.car_pos[i] = (random.randint(1,self.n_lanes),np.random.choice(np.arange(0.2,1,0.05))*self.length, random.random()*self.speed_limit,i)
+
 
         self.car_pos = np.sort(self.car_pos,order='y_pos')
 
@@ -70,8 +75,11 @@ class highway:
         ax1.plot(self.car_pos['lane'][0], self.car_pos['y_pos'][0], 'bx')
         ax1.grid()
         plt.show(block=False)
-        plt.pause(0.5)
-        plt.close()
+        plt.pause(1)
+        plt.clf()
+
+        ### Add field of view ###
+        #plt.close()
 
     def car_behaviour_dyn(self):
         self.car_pos = np.sort(self.car_pos,order='y_pos')
@@ -80,18 +88,35 @@ class highway:
         for idx,car in enumerate(self.car_pos):
 
             if car['id'] != 0:
-                ##### Adapt to every lane #####
-                if idx == self.n_cars:
+
+                temp = self.car_pos[:][self.car_pos['lane'] == car['lane']]
+                temp = np.sort(temp, order='y_pos')
+                idx_next = np.where(temp['id'] == car['id'])
+                if temp.shape[0] > 1 and idx_next[0] < temp.shape[0] - 1:
+
+                    idx_next = idx_next[0] + 1
+                    next_car = temp[idx_next]
+
+                    v_a1 = next_car['y_velo']
+                    x_a1 = next_car['y_pos']
+                else:
                     v_a1 = self.speed_limit
                     x_a1 = self.length + 100
-                else:
-                    v_a1 = self.car_pos['y_velo'][idx + 1]
-                    x_a1 = self.car_pos['y_pos'][idx + 1]
+
+
+
+                ##### Adapt to every lane #####
+                #if idx == self.n_cars:
+                #    v_a1 = self.speed_limit
+                #    x_a1 = self.length + 100
+                #else:
+                #    v_a1 = self.car_pos['y_velo'][idx + 1]
+                #    x_a1 = self.car_pos['y_pos'][idx + 1]
 
                 v_a = car['y_velo']
                 delta_v = v_a-v_a1
                 x_a = car['y_pos']
-                s_a = x_a1 - x_a - self.length
+                s_a = x_a1 - x_a - self.length + 0.1
 
 
                 s_star = self.s0 + v_a*self.T + np.divide(v_a*delta_v,2*np.sqrt(self.a*self.b))
@@ -226,60 +251,109 @@ class highway:
         ##### Get car in front of ego vehicle #####
         temp = self.car_pos[:][self.car_pos['lane'] == ego['lane']]
         temp = np.sort(temp, order='y_pos')
-        idx_next = np.where(temp['id'] == ego['id'])
+        idx_ego = np.where(temp['id'] == ego['id'])
 
-        if temp.shape[0]>1 and idx_next[0] < temp.shape[0]-1:
+        if temp.shape[0]>1 and idx_ego[0] < temp.shape[0]-1:
             #idx_next = np.where(temp['id']==ego['id'])
-            idx_next = idx_next[0] + 1
-            print(idx_next,"/",temp.shape[0])
+            idx_next = idx_ego[0] + 1
             next_car = temp[idx_next]
+            dist_front = abs(next_car['y_pos'] - ego['y_pos'])
         else:
-            dtype = [('lane', int), ('y_pos', float), ('y_velo', float), ('id', int)]
-            next_car = np.zeros(1, dtype=dtype)  # [lane,y-pos ,y-velo,id]
-        # What to do with no car in front
+            dist_front = self.length
+            #dtype = [('lane', int), ('y_pos', float), ('y_velo', float), ('id', int)]
+            #next_car = np.zeros(1, dtype=dtype)  # [lane,y-pos ,y-velo,id]
 
-        dist = abs(next_car['y_pos']-ego['y_pos'])
+
+        #dist_front = abs(next_car['y_pos']-ego['y_pos'])
+
+        ##### Get car in front of ego vehicle #####
+        if temp.shape[0]>1 and idx_ego[0] > 0:
+            idx_behind = idx_ego[0] - 1
+            car_behind = temp[idx_behind]
+            dist_back = abs(ego['y_pos']- car_behind['y_pos'])
+        else:
+            dist_back = self.length
+
+        self.dist_t = self.length - ego['y_pos']
 
         # Calculate reward
         self.reward = 0
-        self.reward += -1
+        #self.reward += -1
         # Out of bounds
         if ego['lane'] > self.n_lanes or ego['lane'] < 1:
-            self.reward += -20
+            self.reward += -100
+            self.done = True
+
+        # Get closer to goal
+        if self.dist_t < self.dist_t1:
+            #print(self.dist_t)
+            #print(self.dist_t1)
+            self.reward +=1
 
         # Collision
-        if dist < self.s0: # maybe add plus term for being in certain distance
-            self.reward += -5
+        if dist_front < self.s0*0.5: # maybe add plus term for being in certain distance
+            self.reward += -100
+            self.done = True
+
+        if dist_back < self.s0*0.5:
+            self.reward += -100
+            self.done = True
+
+        if dist_front < self.s0: # maybe add plus term for being in certain distance
+            self.reward += -50
+
+        if dist_back < self.s0:
+            self.reward += -50
+
+        # Driving in the wrong direction
+        if ego['y_pos'] < 0:
+            self.reward += -100
+            self.done = True
 
         # Reaching goal
         if ego['y_pos'] >=  self.length:
-            self.reward += 20
+            self.reward += 100
             self.done = True
+        #print(self.reward)
+
+        self.dist_t1 = self.dist_t
+
+
+    def get_state(self):
+
+        return self.car_pos, self.reward, self.done
 
 
 
 
     def step(self,action):
-        self.ego_action(action)
-        self.car_behaviour_dyn()
-        self.reward_function()
-        #self.car_behaviour_const()
+        if self.mode == "constant":
+            self.car_behaviour_const()
+        elif self.mode == "dyn":
+            self.car_behaviour_dyn()
+            #print("Dyn")
 
+        self.ego_action(action)
+
+        self.reward_function()
+
+        self.timestep += 1
+        if self.timestep > 150:
+            self.done = True
 
         return self.car_pos, self.reward, self.done
 
 
-env = highway(4,5,1000,100,1,0,30)
+#env = highway(4,5,1000,100,1,0,30)
 
-done = False
-while done == False:
-    action = random.randint(0,20)
+#done = False
+#while done == False:
+# #    action = random.randint(0,20)
+# #    state = env.get_state()
+# #    #env.render()
+# #    state, reward, done = env.step(action)
 
-    env.render()
-    state, reward, done = env.step(action)
 
-
-env.render()
 
 
 
