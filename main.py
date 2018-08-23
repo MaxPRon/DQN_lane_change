@@ -17,7 +17,7 @@ def vectorize_state(state):
 
 #### Environment parameters ####
 
-num_of_cars = 50
+num_of_cars = 10
 num_of_lanes = 2
 track_length = 1000
 speed_limit = 50
@@ -38,24 +38,24 @@ input_dim = (num_of_cars+1)*3
 output_dim = 23
 hidden_units = 64
 layers = 3
-clip_value = 30
+clip_value = 300
 learning_rate = 0.001
 buffer_size = 50000
 batch_size = 32
-update_freq = 1000
+update_freq = 5000
 
 ## RL parameters
 gamma = 0.99
 eStart = 1
 eEnd = 0.1
-estep = 1000
+estep = 50000
 
-max_train_episodes = 10000
+max_train_episodes = 100000
 pre_train_steps = 10000 #Fill up buffer
 
 tau = 1 # Factor of copying parameters
 
-path = "model_h" + str(hidden_units)+"_uf" + str(update_freq) + "_e" + str(max_train_episodes) + "_" + str(ego_lane_init) + str(ego_pos_init)+"/"
+path = "model_h" + str(hidden_units)+"_L" + str(layers) + "_e" + str(max_train_episodes) + "uf_"+ str(update_freq) + "_" + str(num_of_lanes) + str(num_of_cars)+ "_"+ mode+"/"
 
 
 #### Start training process ####
@@ -113,8 +113,7 @@ with tf.Session() as sess:
         while done == False:
             if(np.random.random() < epsilon or total_steps < pre_train_steps):
                 action = random.randint(0,22)
-                if action > 15:
-                    print("lane change")
+
             else:
                 action = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:[state_v]})
                 if action > 20:
@@ -164,9 +163,9 @@ with tf.Session() as sess:
             save_path = saver.save(sess,path+"modelRL"+ str(episode)+ ".ckpt")
             print("Model saved in: %s",save_path)
 
-        if episode % 50 == 0:
-            print("Total steps: ", total_steps, "Average reward over 50 Episodes: ",np.mean(reward_time[-10:]),"Episode:", episode)
-            reward_average.append(np.mean(reward_time[-10:]))
+        if episode % 25 == 0:
+            print("Total steps: ", total_steps, "Average reward over 50 Episodes: ",np.mean(reward_time[-25:]),"Episode:", episode)
+            reward_average.append(np.mean(reward_time[-25:]))
 
     final_save_path = saver.save(sess,path + "Final.ckpt")
     print("Model saved in: %s", final_save_path)
@@ -191,20 +190,33 @@ ax.plot(reward_average)
 plt.tight_layout()
 plt.savefig(path+'reward.png')
 plt.show()
-
-
 plt.close()
 
 #tf.reset_default_graph()
 
+plt.figure(2)
+axa = plt.subplot(1,1,1)
+axa.hist(actions,bins=23,range=(0,22))
+axa.set_title("Action distribution during training")
+axa.set_xlabel("action")
+axa.set_ylabel("times taken")
+
+plt.tight_layout()
+plt.savefig(path+'action_hist.png')
+plt.show()
+
+
+
+done = False
 env = road_env.highway(num_of_lanes, num_of_cars, track_length, speed_limit, ego_lane_init, ego_pos_init,ego_speed_init, mode)
 while done == False:
     action = random.randint(0,22)
     state1, reward, done = env.step(action)
     env.render()
+    print("Random")
 
 
-
+plt.close()
 
 with tf.Session() as sess:
     done = False
@@ -214,10 +226,17 @@ with tf.Session() as sess:
     state,_,_ = env.get_state()
     state_v = vectorize_state(state)
     rewards = []
+    reward_sum = 0
+    reward_time = []
+    actions = []
     while done == False:
+        print("Net")
         action = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:[state_v]})
         state1,reward,done = env.step(action)
         rewards.append(reward)
+        reward_sum += reward
+        reward_time.append(reward_sum)
+        actions.append(action)
         state1_v = vectorize_state(state1)
         state_v = state1_v
         env.render()
@@ -225,16 +244,30 @@ with tf.Session() as sess:
 
 
 
-plt.figure(2)
-ax = plt.subplot(1,1,1)
-ax.set_title("Reward")
-ax.set_xlabel("timestep")
-ax.set_ylabel("reward")
-ax.plot(rewards)
+plt.figure(3)
+ax1 = plt.subplot(3,1,1) # rows cols index
+ax1.set_title("Reward for action")
+ax1.set_xlabel("timestep")
+ax1.set_ylabel("reward")
+ax1.plot(rewards)
+
+
+ax2 = plt.subplot(3,1,2)
+ax2.plot(actions,"ro")
+ax2.set_title("Action taken")
+ax2.set_xlabel("action")
+ax2.set_ylabel("timeestep")
+
+ax3 = plt.subplot(3,1,3) # rows cols index
+ax3.set_title("Reward over time")
+ax3.set_xlabel("timestep")
+ax3.set_ylabel("reward")
+ax3.plot(reward_time)
+
 
 
 plt.tight_layout()
-plt.savefig(path+'reward_final.png')
+plt.savefig(path+'reward_action_final.png')
 plt.show()
 
 

@@ -15,15 +15,28 @@ class qnetwork:
         self.input_state = tf.placeholder(tf.float32,[None,input_dim],name = "input_placeholder")
 
         # Network Architecture
-        self.hidden_layer = tf.layers.dense(self.input_state,hidden_units,activation=tf.nn.relu)
+        self.hidden_layer = tf.layers.dense(self.input_state,hidden_units,activation=tf.nn.relu,kernel_initializer=tf.contrib.layers.xavier_initializer())
 
         for n in range(1,layers):
-            self.hidden_layer = tf.layers.dense(self.hidden_layer,hidden_units,activation=tf.nn.relu)
+            self.hidden_layer = tf.layers.dense(self.hidden_layer,hidden_units,activation=tf.nn.relu,kernel_initializer=tf.contrib.layers.xavier_initializer())
 
         # Network Architecture
         #self.h1 = tf.layers.dense(self.input_state,hidden_units,activation=tf.nn.relu)
         #self.h2 = tf.layers.dense(self.h1,hidden_units,activation=tf.nn.relu)
-        self.output_q_predict = tf.layers.dense(self.hidden_layer,output_dim)
+        #### Implementation Dueling DQN
+        ## Q(s,a) = V(s) + A(s,a)
+
+        ## Calculation V(s)
+        self.value_fc = tf.layers.dense(inputs=self.hidden_layer,units=hidden_units,activation=tf.nn.relu,kernel_initializer=tf.contrib.layers.xavier_initializer())
+        self.value = tf.layers.dense(inputs=self.value_fc,units=1,activation=None,kernel_initializer=tf.contrib.layers.xavier_initializer())
+
+        ## Calculation A(s,a)
+        self.advantage_fc = tf.layers.dense(inputs = self.hidden_layer,units=hidden_units,activation=tf.nn.relu,kernel_initializer=tf.contrib.layers.xavier_initializer())
+        self.advantage = tf.layers.dense(inputs=self.advantage_fc,units=output_dim,activation=None,kernel_initializer=tf.contrib.layers.xavier_initializer())
+
+        self.output_q_predict = self.value + tf.subtract(self.advantage,tf.reduce_mean(self.advantage,axis=1,keep_dims=True))
+
+        #self.output_q_predict = tf.layers.dense(self.hidden_layer,output_dim)
         # Clip values just in case
         self.output_q_predict = tf.clip_by_value(self.output_q_predict,-clip_value,clip_value)
         # Get action (highest q-value)

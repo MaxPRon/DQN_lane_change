@@ -278,7 +278,7 @@ class highway:
 
         # Calculate reward
         self.reward = 0
-        #self.reward += -1
+        self.reward += -1
         # Out of bounds
         if ego['lane'] > self.n_lanes or ego['lane'] < 1:
             self.reward += -100
