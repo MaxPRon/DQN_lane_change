@@ -47,6 +47,9 @@ eStart = 1
 eEnd = 0.1
 estep = 1000
 
+r_seed = 0
+random.seed(r_seed)
+
 max_train_episodes = 5000
 pre_train_steps = 10000 #Fill up buffer
 
@@ -82,13 +85,13 @@ total_steps = 0
 
 done = False
 
-final_save_path = "./model_h64_L3_e10000uf_5000_210_constant/Final.ckpt"
+final_save_path = "./update_frequency_sweep/model_h64_L3__e50000_uf_2000_210_constant/random_1_Final.ckpt"
 
 with tf.Session() as sess:
     done = False
     sess.run(init)
     saver.restore(sess,final_save_path)
-    env = road_env.highway(num_of_lanes, num_of_cars, track_length, speed_limit, ego_lane_init, ego_pos_init,ego_speed_init, mode)
+    env = road_env.highway(num_of_lanes, num_of_cars, track_length, speed_limit, ego_lane_init, ego_pos_init,ego_speed_init, mode,r_seed)
     state,_,_ = env.get_state()
     state_v = vectorize_state(state)
     rewards = []
