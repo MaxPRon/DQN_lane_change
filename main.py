@@ -242,13 +242,13 @@ for param in range(1,param_sweep+1):
         ax2 = plt.subplot(3, 1, 2)
         ax2.plot(actions, "ro")
         ax2.set_title("Action taken")
-        ax2.set_xlabel("action")
-        ax2.set_ylabel("timeestep")
+        ax2.set_xlabel("timestep")
+        ax2.set_ylabel("action")
         ax2.grid()
 
         ax3 = plt.subplot(3, 1, 3)  # rows cols index
         ax3.set_title("Reward over time")
-        ax3.set_xlabel("epsiode * 100")
+        ax3.set_xlabel("timestep")
         ax3.set_ylabel("reward")
         ax3.grid()
         ax3.plot(reward_time)
