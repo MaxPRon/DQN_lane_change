@@ -6,6 +6,9 @@ import road_env
 import q_learning
 import pandas as pd
 import seaborn as sns
+import os.path
+import csv
+
 
 
 def vectorize_state(state):
@@ -52,23 +55,37 @@ eStart = 1
 eEnd = 0.1
 estep = 50000
 
-max_train_episodes = 25000
+max_train_episodes = 20000
 pre_train_steps = 10000 #Fill up buffer
 
 tau = 1 # Factor of copying parameters
 
 #path = "./update_frequency/model_h" + str(hidden_units)+"_L" + str(layers) + "__e" + str(max_train_episodes) + "_uf_"+ str(update_freq) + "_" + str(num_of_lanes) + str(num_of_cars)+ "_"+ mode+"/"
 
-param_sweep = 6
-random_sweep = 5
+param_sweep = 100
+random_sweep = 3
 
-#reward_average = np.empty(random_sweep)
-average_window = 1000
+average_window = 100
 
-for param in range(1,param_sweep+1):
-    ### Change param
-    hidden_units = 16*2**param
 
+folder_path = "./random/"
+
+for param in range(3,param_sweep+1):
+    random.seed(param)
+    # Define parameter space
+    layers = random.randint(2,7)
+    hidden_units = np.random.choice([x for x in np.arange(input_dim,10*input_dim,input_dim)])
+    learning_rate = np.random.choice([x for x in np.arange(0.00001,0.001,2*0.00001)])
+    buffer_size = random.randint(3,10)*10000
+    pre_train_steps = 0.2*buffer_size
+    batch_size = 8 * 2 ** random.randint(1,6)
+    update_freq = 1000*random.randint(1,10)
+    tau = np.random.choice([x for x in np.arange(0.1,1,0.1)])
+    # RL params
+    gamma = np.random.choice([x for x in np.arange(0.75,0.99,0.01)])
+    eStart = np.random.choice([x for x in np.arange(0.75,1,0.01)])
+    eEnd = np.random.choice([x for x in np.arange(0.06,0.3,0.02)])
+    estep = random.randint(1,10)*10000
 
     reward_average = np.zeros((random_sweep,int(max_train_episodes/average_window)))
 
@@ -77,13 +94,29 @@ for param in range(1,param_sweep+1):
 
         random.seed(r_seed)
         #### Start training process ####
-        states = []
-        actions = []
-        reward_time = []
+        folder_path = "./random2/"
 
-        folder_path = "./hidden_units_sweep/"
+        path = folder_path+"model_random_" + str(param) + "/"
 
-        path = folder_path+"model_h" + str(hidden_units) + "_L" + str(layers) + "__e" + str(max_train_episodes) + "_uf_" + str(update_freq) + "_" + str(num_of_lanes) + str(num_of_cars) + "_" + mode + "/"
+        if r_seed == 1: # Only write for first time
+
+            file = open(path + 'params'+str(param)+'.txt', 'w')
+            file.write('NETWORK PARAMETERS: \n\n')
+            file.write('Layers: ' + str(layers) + '\n')
+            file.write('Hidden units: ' + str(hidden_units)+ '\n')
+            file.write('Learning rate: '+ str(learning_rate)+  '\n')
+            file.write('Buffer size: ' + str(buffer_size)+ '\n')
+            file.write('Pre_train_steps: ' + str(pre_train_steps) + '\n')
+            file.write('Batch_size: ' + str(batch_size) + '\n')
+            file.write('Update frequency: ' + str(update_freq) + '\n')
+            file.write('Tau: ' + str(tau) + '\n\n')
+
+            file.write('RL PARAMETERS: \n\n')
+            file.write('Gamma: ' + str(gamma) + '\n')
+            file.write('Epsilon start: ' + str(eStart) + '\n')
+            file.write('Epsilon end: ' + str(eEnd) + '\n')
+            file.write('Epsilon steps: ' + str(estep) + '\n')
+            file.close()
 
         ## Set up networks ##
 
@@ -109,12 +142,10 @@ for param in range(1,param_sweep+1):
         stepDrop = (eStart-eEnd)/estep
 
         ## Init environment ##
-
-        #states = []
-        #actions = []
-        #reward_time = []
-        #reward_average = []
-        #reward_episode = 0
+        states = []
+        actions = []
+        reward_time = []
+        
         total_steps = 0
 
         done = False
@@ -122,6 +153,7 @@ for param in range(1,param_sweep+1):
         ## Start Session ##
         with tf.Session() as sess:
             sess.run(init)
+
 
             for episode in range(max_train_episodes):
                 episode_buffer = q_learning.replay_buffer(buffer_size)
@@ -139,7 +171,7 @@ for param in range(1,param_sweep+1):
                     else:
                         action = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:[state_v]})
 
-                    state1, reward, done = env.step(action)
+                    state1, reward, done, _ = env.step(action)
                     state1_v = vectorize_state(state1)
 
                     total_steps += 1
@@ -185,10 +217,16 @@ for param in range(1,param_sweep+1):
 
                 if episode % average_window == 0:
                     print("Total steps: ", total_steps, "Average reward over 100 Episodes: ",np.mean(reward_time[-average_window:]),"Episode:", episode)
-                    #reward_average[r_seed,int(episode/average_window)].append(np.mean(reward_time[-average_window:]))
                     reward_average[r_seed, int(episode / average_window)]=(np.mean(reward_time[-average_window:]))
+
             final_save_path = saver.save(sess,path+"random_"+str(r_seed)+"_"  + "Final.ckpt")
             print("Model saved in: %s", final_save_path)
+
+
+            with open(path+'reward_time'+str(param)+str(r_seed)+'.csv','w') as myfile:
+                wr = csv.writer(myfile,quoting=csv.QUOTE_ALL)
+                wr.writerow(reward_time)
+            myfile.close()
 
         plt.figure(2)
         axa = plt.subplot(1, 1, 1)
@@ -200,12 +238,9 @@ for param in range(1,param_sweep+1):
         plt.tight_layout()
         manager = plt.get_current_fig_manager()
         manager.resize(*manager.window.maxsize())
-
         #plt.show(block=False)
-
         plt.savefig(path + 'action_hist_'+str(r_seed)+'.png')
         plt.close()
-
 
         with tf.Session() as sess:
             done = False
@@ -222,7 +257,7 @@ for param in range(1,param_sweep+1):
             while done == False:
                 #print("Net")
                 action = sess.run(mainQN.action_pred, feed_dict={mainQN.input_state: [state_v]})
-                state1, reward, done = env.step(action)
+                state1, reward, done, _ = env.step(action)
                 rewards.append(reward)
                 reward_sum += reward
                 reward_time.append(reward_sum)
@@ -260,9 +295,6 @@ for param in range(1,param_sweep+1):
         plt.savefig(path + 'reward_action_final_'+ str(r_seed)+ '.png')
         plt.close()
 
-
-
-
     plt.figure(4)
     #ax = plt.subplot(2,1,1)
     #ax.set_title("Reward")
@@ -275,16 +307,20 @@ for param in range(1,param_sweep+1):
     ax.set_xlabel("epsiode/100")
     ax.set_ylabel("reward")
     ax.grid()
-    #ax.plot(reward_average)
     sns.tsplot(reward_average)
     manager = plt.get_current_fig_manager()
     manager.resize(*manager.window.maxsize())
     #plt.show(block=False)
     plt.tight_layout()
     #plt.savefig(path+'reward'+str(param)+'.png')
-    plt.savefig(path + 'reward' + str(param) + '.png')
+    plt.savefig(folder_path + 'reward' + str(param) + '.png')
     #plt.show()
     plt.close()
+
+    with open(path+'reward_average'+str(param)+'.csv', 'w') as myfile:
+        wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+        wr.writerows(reward_average)
+    myfile.close()
 
 
 

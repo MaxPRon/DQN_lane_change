@@ -25,6 +25,7 @@ class highway:
         self.reward = 0
         self.dist_t = self.length-ego_pos
         self.dist_t1 = self.length - ego_pos
+        self.success = False
 
         # Vehicle Parameters
         self.vehicle_length = 3
@@ -282,7 +283,9 @@ class highway:
         # Out of bounds
         if ego['lane'] > self.n_lanes or ego['lane'] < 1:
             self.reward += -100
+            #print("Fail")
             self.done = True
+            self.success = False
 
         # Get closer to goal
         if self.dist_t < self.dist_t1:
@@ -293,27 +296,33 @@ class highway:
         # Collision
         if dist_front < self.s0*0.5: # maybe add plus term for being in certain distance
             self.reward += -100
+            #print("Fail")
             self.done = True
+            self.success = False
 
         if dist_back < self.s0*0.5:
             self.reward += -100
             self.done = True
+            self.success = False
 
         if dist_front < self.s0: # maybe add plus term for being in certain distance
-            self.reward += -50
+            self.reward += -10
 
         if dist_back < self.s0:
-            self.reward += -50
+            self.reward += -10
 
         # Driving in the wrong direction
         if ego['y_pos'] < 0:
             self.reward += -100
             self.done = True
+            self.success = False
 
         # Reaching goal
         if ego['y_pos'] >=  self.length:
             self.reward += 100
+            #print("Success")
             self.done = True
+            self.success = True
         #print(self.reward)
 
         self.dist_t1 = self.dist_t
@@ -341,7 +350,7 @@ class highway:
         if self.timestep > 150:
             self.done = True
 
-        return self.car_pos, self.reward, self.done
+        return self.car_pos, self.reward, self.done, self.success
 
 
 #env = highway(4,5,1000,100,1,0,30)

@@ -38,12 +38,12 @@ ego_speed_init = 0.25*speed_limit
 #### Network paramters
 input_dim = (num_of_cars+1)*3
 output_dim = 23
-hidden_units = 64
-layers = 3
+hidden_units = 64 # 64 or 128
+layers = 5
 clip_value = 300
 learning_rate = 0.001
 buffer_size = 50000
-batch_size = 32
+batch_size = 16
 update_freq = 2000 #2000 according to sweep
 
 ## RL parameters
@@ -52,14 +52,14 @@ eStart = 1
 eEnd = 0.1
 estep = 50000
 
-max_train_episodes = 35000
+max_train_episodes = 25000
 pre_train_steps = 10000 #Fill up buffer
 
 tau = 1 # Factor of copying parameters
 
 #path = "./update_frequency/model_h" + str(hidden_units)+"_L" + str(layers) + "__e" + str(max_train_episodes) + "_uf_"+ str(update_freq) + "_" + str(num_of_lanes) + str(num_of_cars)+ "_"+ mode+"/"
 
-param_sweep = 5
+param_sweep = 6
 random_sweep = 5
 
 #reward_average = np.empty(random_sweep)
@@ -67,7 +67,7 @@ average_window = 100
 
 for param in range(1,param_sweep+1):
     ### Change param
-    layers = param
+    hidden_units = 16*2**param
 
 
     reward_average = np.zeros((random_sweep,int(max_train_episodes/average_window)))
@@ -81,7 +81,7 @@ for param in range(1,param_sweep+1):
         actions = []
         reward_time = []
 
-        folder_path = "./layer_sweep/"
+        folder_path = "./hidden_units_sweep/"
 
         path = folder_path+"model_h" + str(hidden_units) + "_L" + str(layers) + "__e" + str(max_train_episodes) + "_uf_" + str(update_freq) + "_" + str(num_of_lanes) + str(num_of_cars) + "_" + mode + "/"
 

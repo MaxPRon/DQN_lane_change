@@ -88,3 +88,12 @@ def updateNetwork(tfVars,tau):
 def updateTarget(op_holder,sess):
     for op in op_holder:
         sess.run(op)
+
+
+def bayes_objective(reward,window):
+
+    objective = np.mean(reward[-window:],axis=0)
+    objective = np.mean(objective)
+
+    return objective
+

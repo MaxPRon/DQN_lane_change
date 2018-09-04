@@ -25,7 +25,7 @@ mode = "constant"
 ## Ego Init ##
 ego_lane_init = 1
 ego_pos_init = 0
-ego_speed_init = 0.5*speed_limit
+ego_speed_init = 0.25*speed_limit
 
 
 
@@ -33,9 +33,9 @@ ego_speed_init = 0.5*speed_limit
 #### Network paramters
 input_dim = (num_of_cars+1)*3
 output_dim = 23
-hidden_units = 64
+hidden_units = 99
 layers = 3
-clip_value = 30
+clip_value = 300
 learning_rate = 0.001
 buffer_size = 50000
 batch_size = 32
@@ -72,7 +72,7 @@ trainables = tf. trainable_variables()
 
 targetOps = q_learning.updateNetwork(trainables,tau)
 
-
+random_sweep= 5
 
 ## Init environment ##
 
@@ -85,21 +85,37 @@ total_steps = 0
 
 done = False
 
-final_save_path = "./update_frequency_sweep/model_h64_L3__e50000_uf_2000_210_constant/random_1_Final.ckpt"
+final_save_path = "./bayes/model_random_77561/random_0_Final.ckpt"
+#final_save_path = "./random2/model_random_8/random_0_Final.ckpt"
 
-with tf.Session() as sess:
-    done = False
-    sess.run(init)
-    saver.restore(sess,final_save_path)
-    env = road_env.highway(num_of_lanes, num_of_cars, track_length, speed_limit, ego_lane_init, ego_pos_init,ego_speed_init, mode,r_seed)
-    state,_,_ = env.get_state()
-    state_v = vectorize_state(state)
-    rewards = []
-    while done == False:
-        action = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:[state_v]})
-        #action = random.randint(0,22)
-        state1,reward,done = env.step(action)
-        rewards.append(reward)
-        state1_v = vectorize_state(state1)
-        state_v = state1_v
-        env.render()
+num_tries = 100
+finished = 0
+#for r in range(1,random_sweep)
+for t in range(0,num_tries):
+    if t % 100 == 0:
+        print("Number of tries:" + str(t))
+    with tf.Session() as sess:
+        done = False
+        sess.run(init)
+        saver.restore(sess,final_save_path)
+        env = road_env.highway(num_of_lanes, num_of_cars, track_length, speed_limit, ego_lane_init, ego_pos_init,ego_speed_init, mode,r_seed)
+        state,_,_ = env.get_state()
+        state_v = vectorize_state(state)
+        rewards = []
+        while done == False:
+            action = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:[state_v]})
+            #action = random.randint(0,22)
+            state1,reward,done, success = env.step(action)
+            rewards.append(reward)
+            state1_v = vectorize_state(state1)
+            state_v = state1_v
+            #env.render()
+        reward_time.append(sum(rewards))
+        if success == True:
+            finished += 1
+
+
+average_reward = sum(reward_time)/num_tries
+
+print("Average reward for " + str(num_tries) + " is:" + str(average_reward))
+print("Finished succesfully: %s/%s" % (finished, num_tries))
