@@ -34,7 +34,7 @@ ego_speed_init = 0.25*speed_limit
 input_dim = (num_of_cars+1)*3
 output_dim = 23
 hidden_units = 99
-layers = 3
+layers = 4
 clip_value = 300
 learning_rate = 0.001
 buffer_size = 50000
@@ -47,7 +47,7 @@ eStart = 1
 eEnd = 0.1
 estep = 1000
 
-r_seed = 0
+r_seed = 1
 random.seed(r_seed)
 
 max_train_episodes = 5000
@@ -85,7 +85,7 @@ total_steps = 0
 
 done = False
 
-final_save_path = "./bayes/model_random_77561/random_0_Final.ckpt"
+final_save_path = "./bayes/model_random_139075/random_1_Final.ckpt"
 #final_save_path = "./random2/model_random_8/random_0_Final.ckpt"
 
 num_tries = 100
@@ -102,14 +102,18 @@ for t in range(0,num_tries):
         state,_,_ = env.get_state()
         state_v = vectorize_state(state)
         rewards = []
+        test = 0
         while done == False:
             action = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:[state_v]})
             #action = random.randint(0,22)
             state1,reward,done, success = env.step(action)
             rewards.append(reward)
+            test += reward
+            if test < -10:
+                env.render()
             state1_v = vectorize_state(state1)
             state_v = state1_v
-            #env.render()
+
         reward_time.append(sum(rewards))
         if success == True:
             finished += 1

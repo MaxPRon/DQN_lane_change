@@ -38,40 +38,37 @@ ego_speed_init = 0.25*speed_limit
 #### Network paramters
 input_dim = (num_of_cars+1)*3
 output_dim = 23
-hidden_units = 128
-layers = 5 #according to sweep
+hidden_units = 66 # 64 or 128
+layers = 3
 clip_value = 300
-learning_rate = 0.001
-buffer_size = 50000
-batch_size = 256
-update_freq = 2048 #2000 according to sweep
+learning_rate = 9.000000000000002e-05
+buffer_size = 80000
+batch_size = 128
+update_freq = 3000 #2000 according to sweep
 
 ## RL parameters
-gamma = 0.99
+gamma = 0.75
 eStart = 1
 eEnd = 0.1
 estep = 50000
 
-max_train_episodes = 100000
+max_train_episodes = 25000
 pre_train_steps = 10000 #Fill up buffer
 
 tau = 1 # Factor of copying parameters
 
 #path = "./update_frequency/model_h" + str(hidden_units)+"_L" + str(layers) + "__e" + str(max_train_episodes) + "_uf_"+ str(update_freq) + "_" + str(num_of_lanes) + str(num_of_cars)+ "_"+ mode+"/"
 
-param_sweep = 7
+param_sweep = 1
 random_sweep = 5
 
 #reward_average = np.empty(random_sweep)
-average_window = 1000
+average_window = 100
 
-for param in range(5,param_sweep+1):
+for param in range(1,param_sweep+1):
     ### Change param
-    batch_size = 16 * 2 ** param
-
 
     reward_average = np.zeros((random_sweep,int(max_train_episodes/average_window)))
-
 
     for r_seed in range(0,random_sweep):
 
@@ -81,9 +78,9 @@ for param in range(5,param_sweep+1):
         actions = []
         reward_time = []
 
-        folder_path = "./batch_size_sweep/"
+        folder_path = "./testing/"
 
-        path = folder_path+"model_h" + str(hidden_units) + "_L" + str(layers) + "__e" + str(max_train_episodes) + "b"+str(batch_size) + "_uf_" + str(update_freq) + "_" + str(num_of_lanes) + str(num_of_cars) + "_" + mode + "/"
+        path = folder_path+"model_PER"  + "/"
 
         ## Set up networks ##
 
@@ -100,9 +97,9 @@ for param in range(5,param_sweep+1):
 
         targetOps = q_learning.updateNetwork(trainables,tau)
 
-        load_model = True
+        load_model = False
         ## Create replay buffer ##
-        exp_buffer = q_learning.replay_buffer(buffer_size)
+        exp_buffer = q_learning.prioritized_experience_buffer(buffer_size)
 
         ## Randomness of actions ##
         epsilon = eStart
@@ -124,7 +121,7 @@ for param in range(5,param_sweep+1):
             sess.run(init)
 
             for episode in range(max_train_episodes):
-                episode_buffer = q_learning.replay_buffer(buffer_size)
+                #episode_buffer = q_learning.prioritized_experience_buffer(buffer_size)
                 env = road_env.highway(num_of_lanes, num_of_cars, track_length, speed_limit, ego_lane_init, ego_pos_init,ego_speed_init, mode,r_seed)
                 state,_,_ = env.get_state()
                 state_v = vectorize_state(state)
@@ -139,32 +136,45 @@ for param in range(5,param_sweep+1):
                     else:
                         action = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:[state_v]})
 
-                    state1, reward, done = env.step(action)
+                    state1, reward, done, _ = env.step(action)
                     state1_v = vectorize_state(state1)
 
                     total_steps += 1
 
-                    episode_buffer.add(np.reshape(np.array([state_v,action,reward,state1_v,done]),[1,5])) # [s,a,r,s1,d]
-
+                    #episode_buffer.store(np.reshape(np.array([state_v,action,reward,state1_v,done]),[1,5])) # [s,a,r,s1,d]
+                    experience = state_v, action, reward, state1_v, done
+                    exp_buffer.store(experience)
                     ## Decrease randomness ##
                     if total_steps > pre_train_steps:
                         if epsilon > eEnd:
                             epsilon -= estep
 
-                        trainBatch = exp_buffer.sample(batch_size)
+                        #trainBatch = exp_buffer.sample(batch_size)
+                        tree_idx, batch, ISWeights_mb = exp_buffer.sample(batch_size)
+                        #trainBatch = np.zeros((batch_size,5))
+                        states_exp = np.array([each[0][0] for each in batch])
+                        action_exp = np.array([each[0][1] for each in batch])
+                        reward_exp = np.array([each[0][2] for each in batch])
+                        state1_exp= np.array([each[0][3] for each in batch])
+                        done_exp = np.array([each[0][4] for each in batch])
+
+
+
                         ## Calculate Q-value: Q = r(s,a) + gamma*Q(s1,a_max)
                         # Use main network to predict the action a_max
-                        action_max = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:np.vstack(trainBatch[:,3])}) #a_max
-                        Qt1_vec = sess.run(targetQN.output_q_predict,feed_dict={targetQN.input_state: np.vstack(trainBatch[:,3])}) # All Q-values for s1
+                        action_max = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:np.vstack(state1_exp[:])}) #a_max
+                        Qt1_vec = sess.run(targetQN.output_q_predict,feed_dict={targetQN.input_state: np.vstack(state1_exp[:])}) # All Q-values for s1
 
-                        end_multiplier = - (trainBatch[:,4]-1) # When last step Q = r(s,a)
+                        end_multiplier = - (done_exp[:]-1) # When last step Q = r(s,a)
                         Qt1 = Qt1_vec[range(batch_size),action_max] # select Q(s1,a_max)
 
                         # Q = r(s,a) + gamma*Q(s1,a_max)
-                        Q_gt = trainBatch[:,2] + gamma*Qt1*end_multiplier
+                        Q_gt = reward_exp[:] + gamma*Qt1*end_multiplier
 
                         ## Optimize network parameters
-                        _ = sess.run(mainQN.update,feed_dict={mainQN.input_state:np.vstack(trainBatch[:,0]),mainQN.q_gt:Q_gt,mainQN.actions:trainBatch[:,1]})
+                        absolute_error,_ = sess.run((mainQN.absolute_error,mainQN.update_per),feed_dict={mainQN.input_state:np.vstack(states_exp[:]),mainQN.q_gt:Q_gt,mainQN.actions:action_exp[:],mainQN.ISWeights_:ISWeights_mb})
+
+                        exp_buffer.batch_update(tree_idx,absolute_error)
 
                         ## Update target network ##
                         if total_steps % update_freq == 0:
@@ -176,7 +186,7 @@ for param in range(5,param_sweep+1):
                     actions.append(action)
                     state_v = state1_v
 
-                exp_buffer.add(episode_buffer.buffer)
+                #exp_buffer.store(episode_buffer)
                 reward_time.append(reward_episode)
 
                 if episode % 5000 == 0:
@@ -184,7 +194,7 @@ for param in range(5,param_sweep+1):
                     print("Model saved in: %s",save_path)
 
                 if episode % average_window == 0:
-                    print("Total steps: ", total_steps, "Average reward over 1000 Episodes: ",np.mean(reward_time[-average_window:]),"Episode:", episode)
+                    print("Total steps: ", total_steps, "Average reward over 100 Episodes: ",np.mean(reward_time[-average_window:]),"Episode:", episode)
                     #reward_average[r_seed,int(episode/average_window)].append(np.mean(reward_time[-average_window:]))
                     reward_average[r_seed, int(episode / average_window)]=(np.mean(reward_time[-average_window:]))
             final_save_path = saver.save(sess,path+"random_"+str(r_seed)+"_"  + "Final.ckpt")
