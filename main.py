@@ -139,7 +139,7 @@ for param in range(1,param_sweep+1):
                     else:
                         action = sess.run(mainQN.action_pred,feed_dict={mainQN.input_state:[state_v]})
 
-                    state1, reward, done = env.step(action)
+                    state1, reward, done,_ = env.step(action)
                     state1_v = vectorize_state(state1)
 
                     total_steps += 1

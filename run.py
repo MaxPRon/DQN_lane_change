@@ -34,7 +34,7 @@ ego_speed_init = 0.25*speed_limit
 input_dim = (num_of_cars+1)*3
 output_dim = 23
 hidden_units = 99
-layers = 4
+layers = 2
 clip_value = 300
 learning_rate = 0.001
 buffer_size = 50000
@@ -85,7 +85,7 @@ total_steps = 0
 
 done = False
 
-final_save_path = "./bayes/model_random_139075/random_1_Final.ckpt"
+final_save_path = "./bayes/model_random_281632/random_1_Final.ckpt"
 #final_save_path = "./random2/model_random_8/random_0_Final.ckpt"
 
 num_tries = 100
@@ -109,8 +109,8 @@ for t in range(0,num_tries):
             state1,reward,done, success = env.step(action)
             rewards.append(reward)
             test += reward
-            if test < -10:
-                env.render()
+            #if test < -10:
+                #env.render()
             state1_v = vectorize_state(state1)
             state_v = state1_v
 

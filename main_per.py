@@ -38,24 +38,24 @@ ego_speed_init = 0.25*speed_limit
 #### Network paramters
 input_dim = (num_of_cars+1)*3
 output_dim = 23
-hidden_units = 66 # 64 or 128
-layers = 3
+hidden_units = 99 # 64 or 128
+layers = 2
 clip_value = 300
-learning_rate = 9.000000000000002e-05
-buffer_size = 80000
-batch_size = 128
-update_freq = 3000 #2000 according to sweep
+learning_rate = 0.00013
+buffer_size = 90000
+batch_size = 192
+update_freq = 2000 #2000 according to sweep
 
 ## RL parameters
-gamma = 0.75
-eStart = 1
-eEnd = 0.1
-estep = 50000
+gamma = 0.96
+eStart = 78
+eEnd = 0.06
+estep = 30000
 
-max_train_episodes = 25000
-pre_train_steps = 10000 #Fill up buffer
+max_train_episodes = 35000
+pre_train_steps = 18000 #Fill up buffer
 
-tau = 1 # Factor of copying parameters
+tau = 0.816 # Factor of copying parameters
 
 #path = "./update_frequency/model_h" + str(hidden_units)+"_L" + str(layers) + "__e" + str(max_train_episodes) + "_uf_"+ str(update_freq) + "_" + str(num_of_lanes) + str(num_of_cars)+ "_"+ mode+"/"
 
@@ -172,8 +172,13 @@ for param in range(1,param_sweep+1):
                         Q_gt = reward_exp[:] + gamma*Qt1*end_multiplier
 
                         ## Optimize network parameters
-                        absolute_error,_ = sess.run((mainQN.absolute_error,mainQN.update_per),feed_dict={mainQN.input_state:np.vstack(states_exp[:]),mainQN.q_gt:Q_gt,mainQN.actions:action_exp[:],mainQN.ISWeights_:ISWeights_mb})
-
+                        condition = np.zeros(batch_size)
+                        #absolute_error,_ = sess.run((mainQN.absolute_error,mainQN.update_per),feed_dict={mainQN.input_state:np.vstack(states_exp[:]),mainQN.q_gt:Q_gt,mainQN.actions:action_exp[:],mainQN.ISWeights_:ISWeights_mb})
+                        if action_exp.shape == condition.shape:
+                            absolute_error, _ = sess.run((mainQN.absolute_error, mainQN.update_per),
+                                                         feed_dict={mainQN.input_state: np.vstack(states_exp[:]),
+                                                                    mainQN.q_gt: Q_gt, mainQN.actions: action_exp[:],
+                                                                    mainQN.ISWeights_: ISWeights_mb})
                         exp_buffer.batch_update(tree_idx,absolute_error)
 
                         ## Update target network ##
@@ -232,7 +237,7 @@ for param in range(1,param_sweep+1):
             while done == False:
                 #print("Net")
                 action = sess.run(mainQN.action_pred, feed_dict={mainQN.input_state: [state_v]})
-                state1, reward, done = env.step(action)
+                state1, reward, done, _ = env.step(action)
                 rewards.append(reward)
                 reward_sum += reward
                 reward_time.append(reward_sum)

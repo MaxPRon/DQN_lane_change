@@ -25,11 +25,11 @@ def vectorize_state(state):
 
 def compute_objective(space):
     id = int(time.clock())
-    num_of_cars = 10
-    num_of_lanes = 2
+    num_of_cars = 50
+    num_of_lanes = 5
     track_length = 1000
     speed_limit = 50
-    mode = "constant"
+    mode = "dyn"
     random_seed = 1
     random.seed(random_seed)
 
@@ -79,7 +79,7 @@ def compute_objective(space):
         actions = []
         reward_time = []
 
-        folder_path = "./bayes/"
+        folder_path = "./bayes_dyn/"
 
         path = folder_path + "model_random_" + str(id) + "/"
 
@@ -103,6 +103,14 @@ def compute_objective(space):
             file.write('Epsilon start: ' + str(eStart) + '\n')
             file.write('Epsilon end: ' + str(eEnd) + '\n')
             file.write('Epsilon steps: ' + str(estep) + '\n')
+
+            file.write('SCENARIO PARAMETERS: \n\n')
+            file.write('Cars: ' + str(num_of_cars) + '\n')
+            file.write('Lanes: ' + str(num_of_lanes) + '\n')
+            file.write('Ego speed init: ' + str(ego_speed_init) + '\n')
+            file.write('Ego pos init: ' + str(ego_pos_init) + '\n')
+            file.write('Ego lane init: ' + str(ego_lane_init) + '\n')
+
             file.close()
 
         # Set up networks ##
@@ -155,7 +163,7 @@ def compute_objective(space):
                     else:
                         action = sess.run(mainQN.action_pred, feed_dict={mainQN.input_state: [state_v]})
 
-                    state1, reward, done = env.step(action)
+                    state1, reward, done,_ = env.step(action)
                     state1_v = vectorize_state(state1)
 
                     total_steps += 1
@@ -218,35 +226,6 @@ def compute_objective(space):
                 wr.writerow(reward_time)
             myfile.close()
 
-            #plt.figure(4)
-
-            #ax = plt.subplot(1, 1, 1)
-            #ax.set_title("Reward over time")
-            #ax.set_xlabel("epsiode/100")
-            #ax.set_ylabel("reward")
-            #ax.grid()
-
-            #sns.tsplot(reward_average)
-            #manager = plt.get_current_fig_manager()
-            #manager.resize(*manager.window.maxsize())
-            # plt.show(block=False)
-            #plt.tight_layout()
-            #plt.savefig(folder_path + 'reward' + str(int((layers*buffer_size-update_freq+tau)/5)) + '.png')
-            # plt.show()
-            #plt.close()
-
-
-            #with open(path + 'reward_average' + str(int((layers*buffer_size-update_freq+tau)/5)) + '.csv', 'w') as myfile:
-            #    wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-            #    wr.writerows(reward_average)
-            #myfile.close()
-
-            #with open(path + 'reward_all' + str(int((layers*buffer_size-update_freq+tau)/5)) + '.csv', 'w') as myfile:
-            #    wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-            #    wr.writerows(reward_objective)
-            #myfile.close()
-
-
             reward_eval = []
 
             for t in range(objective_window):
@@ -260,7 +239,7 @@ def compute_objective(space):
 
                 while done == False:
                     action = sess.run(mainQN.action_pred, feed_dict={mainQN.input_state: [state_v]})
-                    state1, reward, done = env.step(action)
+                    state1, reward, done, _ = env.step(action)
                     reward_episode += reward
 
                 reward_eval.append(reward_episode)

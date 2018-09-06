@@ -25,8 +25,8 @@ def vectorize_state(state):
 
 def compute_objective(space):
     id = int(time.clock())
-    num_of_cars = 10
-    num_of_lanes = 2
+    num_of_cars = 50
+    num_of_lanes = 5
     track_length = 1000
     speed_limit = 50
     mode = "constant"
@@ -44,7 +44,7 @@ def compute_objective(space):
 
     #### Reward Variables
     random_sweep = 3
-    max_train_episodes = 30000
+    max_train_episodes = 20000
     objective_window = 100
     average_window = 100
 
@@ -79,9 +79,9 @@ def compute_objective(space):
         actions = []
         reward_time = []
 
-        folder_path = "./testing/"
+        folder_path = "./per_bayes_dyn/"
 
-        path = folder_path + "model_random_" + str(id) + "/"
+        path = folder_path + "model_per_" + str(id) + "/"
 
         #### Store Results
         if r_seed == 1:  # Only write for first time
@@ -103,6 +103,13 @@ def compute_objective(space):
             file.write('Epsilon start: ' + str(eStart) + '\n')
             file.write('Epsilon end: ' + str(eEnd) + '\n')
             file.write('Epsilon steps: ' + str(estep) + '\n')
+
+            file.write('SCENARIO PARAMETERS: \n\n')
+            file.write('Cars: ' + str(num_of_cars) + '\n')
+            file.write('Lanes: ' + str(num_of_lanes) + '\n')
+            file.write('Ego speed init: ' + str(ego_speed_init) + '\n')
+            file.write('Ego pos init: ' + str(ego_pos_init) + '\n')
+            file.write('Ego lane init: ' + str(ego_lane_init) + '\n')
             file.close()
 
         # Set up networks ##
@@ -190,11 +197,14 @@ def compute_objective(space):
                         # Q = r(s,a) + gamma*Q(s1,a_max)
                         Q_gt = reward_exp[:] + gamma * Qt1 * end_multiplier
 
+                        condition = np.zeros(batch_size)
+
                         ## Optimize network parameters
-                        absolute_error, _ = sess.run((mainQN.absolute_error, mainQN.update_per),
-                                                     feed_dict={mainQN.input_state: np.vstack(states_exp[:]),
-                                                                mainQN.q_gt: Q_gt, mainQN.actions: action_exp[:],
-                                                                mainQN.ISWeights_: ISWeights_mb})
+                        if action_exp.shape == condition.shape:
+                            absolute_error, _ = sess.run((mainQN.absolute_error, mainQN.update_per),
+                                                         feed_dict={mainQN.input_state: np.vstack(states_exp[:]),
+                                                                    mainQN.q_gt: Q_gt, mainQN.actions: action_exp[:],
+                                                                    mainQN.ISWeights_: ISWeights_mb})
 
                         exp_buffer.batch_update(tree_idx, absolute_error)
 

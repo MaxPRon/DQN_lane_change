@@ -21,6 +21,7 @@ class qnetwork:
             self.hidden_layer = tf.layers.dense(self.hidden_layer,hidden_units,activation=tf.nn.relu,kernel_initializer=tf.contrib.layers.xavier_initializer())
 
         # Network Architecture
+
         #self.h1 = tf.layers.dense(self.input_state,hidden_units,activation=tf.nn.relu)
         #self.h2 = tf.layers.dense(self.h1,hidden_units,activation=tf.nn.relu)
         #### Implementation Dueling DQN
